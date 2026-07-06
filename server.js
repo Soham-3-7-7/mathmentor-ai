@@ -2,51 +2,49 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Initialize Supabase Client
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+// Hardcoded for direct Hackathon compilation stability
+const supabase = createClient(
+  "https://your-actual-project-id.supabase.co", 
+  "your-actual-long-sb-anon-key-here"
+);
 
-const FASTAPI_URL = "http://localhost:8000";
-
-// Route: Save Test results and invoke the Python AI Analyzer
-app.post('/api/tests/submit', async (req, res) => {
-  const { userId, testHistory } = req.body;
-
+// Feature 1 Endpoint: Doubt Solver Proxy
+app.post('/api/evaluate', async (req, res) => {
   try {
-    // 1. Pass the test data forward to your Python FastAPI service
-    const aiResponse = await axios.post(`${FASTAPI_URL}/api/analyze-test`, {
-      test_history: testHistory
+    const aiResponse = await axios.post('http://localhost:8000/api/ai/doubt-solver', req.body);
+    res.json(aiResponse.data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Feature 2 Endpoint: Process Test Compilation and Pattern Analyzer
+app.post('/api/test/finalize', async (req, res) => {
+  const { sessionData, questionsContext } = req.body;
+  try {
+    // 1. Ask FastAPI + Gemini to perform cognitive diagnostics
+    const aiAnalysis = await axios.post('http://localhost:8000/api/ai/pattern-analyzer', {
+      questions_context: questionsContext
     });
-    
-    // Parse the structured JSON content returned from Gemini via FastAPI
-    const diagnosticResult = typeof aiResponse.data === 'string' ? JSON.parse(aiResponse.data) : aiResponse.data;
 
-    // 2. Persist the analysis records into your Supabase database instance
+    // 2. Commit transaction metadata directly into Supabase
     const { data, error } = await supabase
-      .from('test_analytics')
-      .insert([
-        { 
-          user_id: userId, 
-          learning_dna_speed: diagnosticResult.learning_dna.speed,
-          learning_dna_logic: diagnosticResult.learning_dna.logic,
-          learning_dna_calculation: diagnosticResult.learning_dna.calculation,
-          summary: diagnosticResult.thinking_pattern_summary,
-          difficulty_next: diagnosticResult.suggested_difficulty_adjustment,
-          created_at: new Date()
-        }
-      ]);
+      .from('test_sessions')
+      .insert([{
+        subject: sessionData.subject,
+        topics: sessionData.topics,
+        total_questions: sessionData.totalQuestions,
+        thinking_pattern_analysis: aiAnalysis.data.analysis
+      }]);
 
-    if (error) throw error;
-
-    res.json({ message: "Analysis completed successfully", report: diagnosticResult });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed processing metrics pipeline" });
+    res.json({ success: true, evaluation: aiAnalysis.data.analysis });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
