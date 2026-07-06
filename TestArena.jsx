@@ -1,137 +1,142 @@
-import React, { useState, useEffect } from 'react';
-
-// Hardcoded boilerplate mock question data for hackathon presentation purposes
-const MOCK_QUESTIONS = [
-  { id: "q1", question: "A particle moves along a circular path of radius R. What is its displacement after half a circle?", options: ["2R", "πR", "Zero", "R/2"], correct: "2R" },
-  { id: "q2", question: "Which of the following compounds has the highest covalent character according to Fajan's Rules?", options: ["LiCl", "NaCl", "KCl", "RbCl"], correct: "LiCl" }
-];
+import React, { useState } from 'react';
 
 export default function TestArena() {
-  const [testActive, setTestActive] = useState(false);
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(60); // 1 minute countdown clock
-  const [report, setReport] = useState(null);
+  const [activeTab, setActiveTab] = useState('doubt'); // 'doubt' or 'test'
+  const [question, setQuestion] = useState('');
+  const [userSolution, setUserSolution] = useState('');
+  const [terminalOutput, setTerminalOutput] = useState('// Logs will stream here...');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (testActive && timeLeft > 0) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && testActive) {
-      handleSubmitTest();
-    }
-  }, [timeLeft, testActive]);
-
-  const handleStartTest = () => {
-    setTestActive(true);
-    setTimeLeft(60);
-    setReport(null);
-  };
-
-  const handleSelectOption = (option) => {
-    setSelectedAnswers({ ...selectedAnswers, [MOCK_QUESTIONS[currentIdx].id]: option });
-  };
-
-  const handleSubmitTest = async () => {
-    setTestActive(false);
+  const handleSolveDoubt = async () => {
     setLoading(true);
-
-    // Formulate payload data matching expected backend array structure
-    const testHistory = MOCK_QUESTIONS.map(q => ({
-      question_id: q.id,
-      selected_option: selectedAnswers[q.id] || "Skipped",
-      correct_option: q.correct,
-      time_taken_seconds: Math.floor(60 / MOCK_QUESTIONS.length) // Simplistic baseline simulation
-    }));
-
+    setTerminalOutput('[PENDING] Sending question payloads to Node Orchestrator...');
     try {
-      const res = await fetch('http://localhost:5000/api/tests/submit', {
+      const res = await fetch('http://localhost:5000/api/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: "hackathon_user_id", testHistory })
+        body: JSON.stringify({ question, student_solution: userSolution })
       });
       const data = await res.json();
-      setReport(data.report);
+      setTerminalOutput(data.analysis || JSON.stringify(data, null, 2));
     } catch (err) {
-      alert("Error calculating metrics pipeline components.");
+      setTerminalOutput(`[ERROR] Network drop detected: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto font-sans bg-slate-900 text-slate-100 rounded-xl min-h-[500px] mt-10 shadow-2xl">
-      <h2 className="text-2xl font-black mb-4 text-cyan-400 tracking-tight">🔬 Feature 2: AI Adaptive Test Arena</h2>
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-indigo-950 text-slate-100 p-6 flex flex-col items-center font-sans">
+      
+      {/* App Header */}
+      <header className="w-full max-w-6xl text-center my-6">
+        <div className="inline-block bg-indigo-500/10 text-indigo-400 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2 border border-indigo-500/20">
+          Agentic AI Adaptive Learning Engine
+        </div>
+        <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-indigo-200 to-slate-400 bg-clip-text text-transparent">
+          MathMentor <span className="text-indigo-400">Agentic Suite</span>
+        </h1>
+      </header>
 
-      {!testActive && !report && (
-        <button onClick={handleStartTest} className="bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-bold py-3 px-6 rounded-lg hover:opacity-90">
-          Start Dynamic Demo Test (Physics & Chemistry)
+      {/* Feature Selector Tabs */}
+      <div className="flex gap-4 mb-8 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+        <button 
+          onClick={() => setActiveTab('doubt')}
+          className={`px-6 py-2 rounded-lg font-medium transition-all ${activeTab === 'doubt' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+        >
+          🔍 Doubt Solver
         </button>
-      )}
+        <button 
+          onClick={() => setActiveTab('test')}
+          className={`px-6 py-2 rounded-lg font-medium transition-all ${activeTab === 'test' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+        >
+          📝 Adaptive Test Maker
+        </button>
+      </div>
 
-      {testActive && (
-        <div>
-          <div className="flex justify-between font-mono bg-slate-950 p-3 rounded mb-4 text-sm">
-            <span>Question {currentIdx + 1} of {MOCK_QUESTIONS.length}</span>
-            <span className={timeLeft < 20 ? "text-red-400 animate-pulse" : "text-yellow-400"}>⏱️ Time Left: {timeLeft}s</span>
-          </div>
-
-          <p className="text-lg bg-slate-800 p-4 rounded-lg mb-6 border border-slate-700 font-medium">{MOCK_QUESTIONS[currentIdx].question}</p>
-          
-          <div className="space-y-3">
-            {MOCK_QUESTIONS[currentIdx].options.map((opt, i) => (
+      {/* Main Workspace Workspace */}
+      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Left Interactive Input Panel */}
+        <main className="lg:col-span-5 bg-slate-900/60 backdrop-blur-md border border-slate-800 p-6 rounded-2xl shadow-2xl flex flex-col justify-between">
+          {activeTab === 'doubt' ? (
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold flex items-center gap-2 text-slate-200"><span>💬</span> Physics & Math Doubt Room</h2>
+              <div>
+                <label className="block text-xs uppercase font-bold text-slate-400 mb-1">Enter Question Text</label>
+                <textarea 
+                  value={question} 
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="e.g., Prove the reduction formula for integration of sin^n(x)..."
+                  className="w-full h-24 bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500 text-slate-200"
+                />
+              </div>
+              <div>
+                <label className="block text-xs uppercase font-bold text-slate-400 mb-1">Your Attempted Steps (Optional)</label>
+                <textarea 
+                  value={userSolution}
+                  onChange={(e) => setUserSolution(e.target.value)}
+                  placeholder="Paste your code calculation steps or equations here..."
+                  className="w-full h-28 bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500 text-slate-200"
+                />
+              </div>
               <button 
-                key={i} 
-                onClick={() => handleSelectOption(opt)}
-                className={`w-full text-left p-3 rounded-lg transition-all border ${selectedAnswers[MOCK_QUESTIONS[currentIdx].id] === opt ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300' : 'bg-slate-900 border-slate-700 hover:bg-slate-800'}`}
+                onClick={handleSolveDoubt}
+                disabled={loading}
+                className="w-full py-3 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 rounded-xl font-bold shadow-lg transition-all active:scale-95 disabled:opacity-50"
               >
-                {opt}
+                {loading ? 'Processing Agent Analytics...' : '🚀 Evaluate & Extract Corrections'}
               </button>
-            ))}
-          </div>
-
-          <div className="flex justify-between mt-8">
-            <button disabled={currentIdx === 0} onClick={() => setCurrentIdx(currentIdx - 1)} className="px-4 py-2 bg-slate-700 rounded disabled:opacity-40">Previous</button>
-            {currentIdx < MOCK_QUESTIONS.length - 1 ? (
-              <button onClick={() => setCurrentIdx(currentIdx + 1)} className="px-4 py-2 bg-slate-700 rounded">Next</button>
-            ) : (
-              <button onClick={handleSubmitTest} className="px-5 py-2 bg-emerald-500 text-slate-950 font-bold rounded hover:opacity-90">Finish and Evaluate</button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {loading && <div className="text-center text-cyan-400 font-medium py-10 animate-pulse">Running Thinking Pattern Analysis Pipelines...</div>}
-
-      {report && (
-        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 mt-6 space-y-6">
-          <h3 className="text-xl font-bold text-purple-400 border-b border-slate-700 pb-2">🧠 Thinking Pattern Report</h3>
-          <p className="text-sm text-slate-300 leading-relaxed italic">"{report.thinking_pattern_summary}"</p>
-          
-          <div>
-            <h4 className="text-sm font-bold tracking-wider text-slate-400 uppercase mb-3">🧬 Learning DNA Metrics</h4>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-slate-950 p-4 rounded-lg text-center border-t-4 border-blue-500">
-                <span className="text-xs text-slate-400">Speed</span>
-                <p className="text-2xl font-bold font-mono text-blue-400">{report.learning_dna.speed}%</p>
-              </div>
-              <div className="bg-slate-950 p-4 rounded-lg text-center border-t-4 border-purple-500">
-                <span className="text-xs text-slate-400">Logic</span>
-                <p className="text-2xl font-bold font-mono text-purple-400">{report.learning_dna.logic}%</p>
-              </div>
-              <div className="bg-slate-950 p-4 rounded-lg text-center border-t-4 border-emerald-500">
-                <span className="text-xs text-slate-400">Calculation</span>
-                <p className="text-2xl font-bold font-mono text-emerald-400">{report.learning_dna.calculation}%</p>
-              </div>
             </div>
+          ) : (
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold flex items-center gap-2 text-slate-200"><span>⚡</span> Setup Target Adaptive Test</h2>
+              <div>
+                <label className="block text-xs uppercase font-bold text-slate-400 mb-1">Target Examination Stream</label>
+                <select className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-300">
+                  <option>JEE Mains / Advanced</option>
+                  <option>NEET Medical Tracker</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs uppercase font-bold text-slate-400 mb-1">Subject Scope</label>
+                <select className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-300">
+                  <option>Mathematics (Integration, Calculus)</option>
+                  <option>Physics (Mechanics, AC Circuits)</option>
+                  <option>Chemistry</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs uppercase font-bold text-slate-400 mb-1">Volume</label>
+                  <input type="number" defaultValue={5} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-center text-slate-300" />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase font-bold text-slate-400 mb-1">Timer (Min)</label>
+                  <input type="number" defaultValue={15} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-center text-slate-300" />
+                </div>
+              </div>
+              <button className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 rounded-xl font-bold shadow-lg transition-all">
+                🎯 Build Realtime Dynamic Test
+              </button>
+            </div>
+          )}
+        </main>
+
+        {/* Right Output Dashboard Stream */}
+        <section className="lg:col-span-7 bg-slate-900/60 backdrop-blur-md border border-slate-800 p-6 rounded-2xl shadow-2xl flex flex-col h-[520px]">
+          <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-3">
+            <h3 className="font-bold text-slate-300 flex items-center gap-2">
+              <span>📊</span> AI Diagnostic Stream & Learning DNA
+            </h3>
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
           </div>
-          <div className="bg-slate-950 p-3 rounded text-xs text-slate-400 flex justify-between items-center">
-            <span>Next Suggested Platform Adaptation:</span>
-            <span className="font-bold text-yellow-400">{report.suggested_difficulty_adjustment}</span>
+          <div className="flex-1 bg-slate-950 border border-slate-900 rounded-xl p-4 font-mono text-xs overflow-y-auto text-indigo-300 whitespace-pre-wrap leading-relaxed">
+            {terminalOutput}
           </div>
-        </div>
-      )}
+        </section>
+
+      </div>
     </div>
   );
 }
